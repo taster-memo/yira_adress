@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Générateur d'adresses</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-title">Générateur d'adresses</div>
+      <div class="header-sub">À pied · Aucune adresse dupliquée</div>
+    </div>
+
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tab-simple" onclick="setMode('simple')">
+        <span class="mode-dot" style="background:#378ADD"></span>
+        Simple
+        <span class="mode-range">300–500 m à pied</span>
+      </button>
+      <button class="mode-tab" id="tab-multiple" onclick="setMode('multiple')">
+        <span class="mode-dot" style="background:#1D9E75"></span>
+        Multiple A→B→C
+        <span class="mode-range">B 300–500m · C 800–1000m</span>
+      </button>
+    </div>
+
+    <div class="search-box">
+      <button class="btn-paste" id="pasteBtn" onclick="pasteAddress()" title="Coller depuis le presse-papiers">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7">
+          <rect x="4" y="3" width="9" height="11" rx="1.5"/>
+          <path d="M4 4H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1"/>
+          <rect x="6" y="1" width="5" height="3" rx="1"/>
+        </svg>
+        Coller
+      </button>
+      <input type="text" id="addressInput" placeholder="Ex: 30 avenue robert schuman 33130 Bègles"/>
+      <button class="btn-fav" id="saveFavBtn" onclick="saveCurrentAsFavorite()" title="Ajouter aux favoris">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7">
+          <path d="M8 1l2.2 4.5 5 .7-3.6 3.5.9 5L8 12.5l-4.5 2.4.9-5L.8 6.2l5-.7L8 1z"/>
+        </svg>
+      </button>
+      <button class="btn-gen" id="genBtn" onclick="generate()">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/>
+        </svg>
+        Générer
+      </button>
+    </div>
+
+    <div class="favorites-section" id="favoritesSection">
+      <div class="favorites-header">
+        <span class="favorites-title">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l2.2 4.5 5 .7-3.6 3.5.9 5L8 12.5l-4.5 2.4.9-5L.8 6.2l5-.7L8 1z"/></svg>
+          Adresses de base
+        </span>
+      </div>
+      <div class="favorites-list" id="favoritesList"></div>
+    </div>
+
+    <div id="modeHint" class="mode-hint"></div>
+
+    <div class="history-bar" id="historyBar" style="display:none">
+      <span class="history-label">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+        Adresses déjà générées :
+      </span>
+      <span id="historyCount">0</span>
+      <button class="btn-clear" onclick="clearHistory()">Effacer l'historique</button>
+    </div>
+
+    <div class="map-wrap">
+      <div id="mapContainer">
+        <div class="map-placeholder">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".3">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+            <circle cx="12" cy="9" r="2.5"/>
+          </svg>
+          La carte apparaîtra après génération
+        </div>
+      </div>
+    </div>
+
+    <div id="output"></div>
+
+    <details style="margin-top:1rem">
+      <summary style="cursor:pointer;font-size:12px;color:var(--text-tertiary);padding:6px 0">
+        🔍 Logs de debug (cliquer pour ouvrir)
+      </summary>
+      <pre id="debugLog" style="background:#000;color:#0f0;font-size:11px;padding:10px;border-radius:6px;max-height:300px;overflow:auto;font-family:monospace;line-height:1.5;margin-top:6px"></pre>
+    </details>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="config.js"></script>
+  <script src="history.js"></script>
+  <script src="favorites.js"></script>
+  <script src="map.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    async function pasteAddress() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          document.getElementById("addressInput").value = text.trim();
+          const btn = document.getElementById("pasteBtn");
+          const orig = btn.innerHTML;
+          btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l4 4 6-7"/></svg> Collé !`;
+          setTimeout(() => { btn.innerHTML = orig; }, 1500);
+        }
+      } catch (e) {
+        // Fallback si clipboard API refusée
+        document.getElementById("addressInput").focus();
+        document.execCommand("paste");
+      }
+    }
+  </script>
+</body>
+</html>
